@@ -1,0 +1,34 @@
+version: "3.7"
+
+services:
+  webinterface:
+    build:
+      context: ./webinterface
+    container_name: smarthome_webinterface
+    ports:
+      - 3000:3000
+    networks:
+      - smarthome
+
+  homebridge:
+    build:
+      context: ./homebridge
+    container_name: homebridge
+    ports:
+      - 51826:51826
+      - 8765:8765
+    networks:
+      - smarthome
+
+  mosquitto:
+    build:
+      context: ./mosquitto
+    container_name: mosquitto
+    ports:
+      - 9001:9001
+      - 1883:1883
+    networks:
+      - smarthome
+
+networks:
+  smarthome:

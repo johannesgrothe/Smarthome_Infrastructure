@@ -1,0 +1,23 @@
+{
+    "bridge": {
+        "name": "RaspiBridge",
+        "username": "CC:22:32:32:CE:30",
+        "port": 51826,
+        "pin": "133-88-145"
+    },
+
+    "accessories": [
+
+
+    ],
+
+    "platforms": [
+        {
+                "platform": "Server",
+                "port"    : 8765,
+                "name"    : "RaspiBridge Server",
+                "log"     : "<PATH_TO_YOUR_LOG_FILE>",
+                "restart" : "<COMMAND_TO_EXECUTE>"
+        }
+    ]
+}
