@@ -1,9 +1,9 @@
 {
     "bridge": {
         "name": "RaspiBridge",
-        "username": "CC:22:32:32:CE:30",
+        "username": "CC:22:CC:32:CE:41",
         "port": 51826,
-        "pin": "133-88-145"
+        "pin": "177-77-177"
     },
 
     "accessories": [
