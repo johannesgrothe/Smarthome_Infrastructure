@@ -1,9 +1,9 @@
 {
     "bridge": {
-        "name": "RaspiBridge",
+        "name": "TestBridge",
         "username": "CC:22:CC:32:CE:41",
         "port": 51826,
-        "pin": "177-77-177"
+        "pin": "178-77-178"
     },
 
     "accessories": [
@@ -18,6 +18,11 @@
                 "name"    : "RaspiBridge Server",
                 "log"     : "<PATH_TO_YOUR_LOG_FILE>",
                 "restart" : "<COMMAND_TO_EXECUTE>"
+        },
+        {
+          "platform": "mqtt",
+          "name": "mqtt",
+          "url": "mqtt://mosquitto:1883"
         }
     ]
 }
