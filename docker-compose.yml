@@ -8,19 +8,16 @@ services:
     restart: always
     ports:
       - 3000:3000
-    networks:
-      - smarthome
 
   homebridge:
     build:
       context: ./homebridge
     container_name: homebridge
     restart: always
+    network_mode: host
     ports:
       - 51826:51826
       - 8765:8765
-    networks:
-      - smarthome
 
   mosquitto:
     build:
@@ -30,8 +27,11 @@ services:
     ports:
       - 9001:9001
       - 1883:1883
-    networks:
-      - smarthome
 
-networks:
-  smarthome:
+  command-gatway:
+    build:
+      context: : ./command_gateway
+    container_name: command-gateway
+    restart: always
+    ports:
+      - 3006:3006

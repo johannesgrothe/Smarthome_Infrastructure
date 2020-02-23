@@ -1,7 +1,7 @@
 {
     "bridge": {
         "name": "TestBridge",
-        "username": "CC:22:CC:32:CE:41",
+        "username": "AC:15:9C:32:CE:33",
         "port": 51826,
         "pin": "178-77-178"
     },
@@ -22,7 +22,7 @@
         {
           "platform": "mqtt",
           "name": "mqtt",
-          "url": "mqtt://mosquitto:1883"
+          "url": "mqtt://localhost:1883"
         }
     ]
 }

@@ -1,0 +1,8 @@
+{
+  "name": "REST-Tester",
+  "version": "1.0.0",
+  "dependencies": {},
+  "devDependencies": {
+    "express": "^4.17.1"
+  }
+}

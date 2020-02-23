@@ -1,0 +1,10 @@
+{
+  "name": "smarthome_command_gateway",
+  "version": "1.0.0",
+  "description": "Gateway to forward HEX Commands to other Controllers",
+  "main": "command_gateway.js",
+  "dependencies": {
+    "express": "^4.17.1",
+    "body-parser": "latest"
+  }
+}
