@@ -5,7 +5,7 @@
 const http = require('http');
 let SERVER = process.env.HOST;
 if (SERVER === undefined) {
-  SERVER = "localhost";
+  SERVER = "192.168.178.111";
 }
 const PORT = 3011;
 
@@ -126,4 +126,4 @@ register_gateway();
 
 get_time();
 
-tester.listen(PORT, () => console.log("[i] Tester: " + SERVER + ":" + PORT));
+tester.listen(PORT, () => console.log("[i] Tester:" + PORT));

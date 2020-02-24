@@ -30,8 +30,16 @@ services:
 
   command-gatway:
     build:
-      context: : ./command_gateway
+      context: ./command_gateway
     container_name: command-gateway
     restart: always
     ports:
       - 3006:3006
+
+  rest-tester:
+    build:
+      context: ./rest_tester
+    container_name: rest-tester
+    restart: always
+    ports:
+      - 3005:3005
