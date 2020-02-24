@@ -15,6 +15,14 @@ let add_client = (id, host, port) => {
   if (host === undefined || port === undefined || id === undefined) {
     return false;
   }
+  for (let client of clients) {
+    if (client["id"] === id) {
+      client["hostname"] = host;
+      client["port"] = port;
+      console.log(`[i] Client '${id}' updated: (${host}:${port})`);
+      return true;
+    }
+  }
   clients.push({id: id, hostname: host, port: port});
   return true;
 };
@@ -133,12 +141,13 @@ gateway.post('/command', (req, res) => {
 });
 
 gateway.post('/login', (req, res) => {
+  let con_parts = req.connection.remoteAddress.split(":");
+  let ip = con_parts[con_parts.length - 1];
   let new_id = req.body["id"];
-  let new_host = req.hostname;
+  let new_host = ip;
   let new_port = req.body["port"];
   if (add_client(new_id, new_host, new_port)) {
     res.status(200).send("Client registered");
-    console.log(`[i] New Client '${new_id}' (${new_host}:${new_port})`);
   } else {
     res.status(400).send("[x] Adding Client failed.");
   }

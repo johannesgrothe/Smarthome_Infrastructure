@@ -5,7 +5,9 @@
 const http = require('http');
 let SERVER = process.env.HOST;
 if (SERVER === undefined) {
-  SERVER = "192.168.178.111";
+  // SERVER = "192.168.178.111";
+  SERVER = "localhost";
+
 }
 const PORT = 3011;
 
