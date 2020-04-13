@@ -1,0 +1,43 @@
+<mxfile host="Electron" modified="2020-04-13T19:01:24.496Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/12.6.5 Chrome/80.0.3987.86 Electron/8.0.0 Safari/537.36" etag="MNtdCWeYXTEA2xdGoos7" version="12.6.5" type="device">
+  <diagram id="nN_va-oRhWclVbQy6bwK" name="Component Communication">
+    <mxGraphModel dx="786" dy="603" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="EUZP2hQ_IZDHrKOLUjLR-1" value="Bridge" style="html=1;" vertex="1" parent="1">
+          <mxGeometry x="240" y="120" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="EUZP2hQ_IZDHrKOLUjLR-17" value="REST" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;shadow=0;endArrow=none;endFill=0;strokeWidth=3;strokeColor=#CCCC00;" edge="1" parent="1" source="EUZP2hQ_IZDHrKOLUjLR-2" target="EUZP2hQ_IZDHrKOLUjLR-1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="EUZP2hQ_IZDHrKOLUjLR-2" value="Webinterface" style="html=1;" vertex="1" parent="1">
+          <mxGeometry x="440" y="120" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="EUZP2hQ_IZDHrKOLUjLR-16" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;shadow=0;endArrow=none;endFill=0;strokeWidth=3;strokeColor=#0000FF;labelBorderColor=none;" edge="1" parent="1" source="EUZP2hQ_IZDHrKOLUjLR-3" target="EUZP2hQ_IZDHrKOLUjLR-1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="EUZP2hQ_IZDHrKOLUjLR-3" value="Gadget A" style="html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="360" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="EUZP2hQ_IZDHrKOLUjLR-15" value="MQTT" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;shadow=0;endArrow=none;endFill=0;strokeWidth=3;strokeColor=#0000FF;" edge="1" parent="1" source="EUZP2hQ_IZDHrKOLUjLR-4" target="EUZP2hQ_IZDHrKOLUjLR-1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="EUZP2hQ_IZDHrKOLUjLR-4" value="Gadget B" style="html=1;" vertex="1" parent="1">
+          <mxGeometry x="200" y="360" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="EUZP2hQ_IZDHrKOLUjLR-13" value="Serial Bus" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;strokeWidth=3;endArrow=none;endFill=0;shadow=0;strokeColor=#FF0000;" edge="1" parent="1" source="EUZP2hQ_IZDHrKOLUjLR-5" target="EUZP2hQ_IZDHrKOLUjLR-1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="EUZP2hQ_IZDHrKOLUjLR-5" value="Gadget C" style="html=1;" vertex="1" parent="1">
+          <mxGeometry x="360" y="360" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="EUZP2hQ_IZDHrKOLUjLR-18" value="MQTT" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;shadow=0;endArrow=none;endFill=0;strokeWidth=3;strokeColor=#0000FF;" edge="1" parent="1" source="EUZP2hQ_IZDHrKOLUjLR-6" target="EUZP2hQ_IZDHrKOLUjLR-1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="EUZP2hQ_IZDHrKOLUjLR-6" value="Homebridge" style="html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="120" width="120" height="50" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

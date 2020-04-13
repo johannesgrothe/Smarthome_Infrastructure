@@ -7,7 +7,11 @@ const mqtt = require('mqtt');
 
 // Basic
 
+const remote_types = ["homebridge"];
+
 let clients = [];
+
+let gadgets = [];
 
 let codes = {};
 
@@ -81,6 +85,69 @@ let add_client = (id, network) => {
   return true;
 };
 
+let get_gadget = (gadget_name) => {
+  for (let gadget of gadgets) {
+    if (gadget["name"] === gadget_name) {
+      return gadget
+    }
+  }
+  return false;
+}
+
+let add_gadget = (gadget_name, service, characteristics, remotes) => {
+  let buf_gadget = {};
+  buf_gadget["name"] = gadget_name;
+  buf_gadget["service"] = service;
+
+  //characteristics
+  buf_gadget["characteristics"] = {};
+  for (let characteristic in characteristics) {
+    if (characteristics.hasOwnProperty(characteristic)) {
+      let charac_data = characteristics[characteristic];
+      buf_gadget["characteristics"][characteristic] = {};
+      if (charac_data.hasOwnProperty("min")) {
+        buf_gadget["characteristics"][characteristic]["min"] = Number(charac_data["min"]);
+      } else {
+        buf_gadget["characteristics"][characteristic]["min"] = 0;
+      }
+      if (charac_data.hasOwnProperty("max")) {
+        buf_gadget["characteristics"][characteristic]["max"] = Number(charac_data["max"]);
+      } else {
+        buf_gadget["characteristics"][characteristic]["max"] = 100;
+      }
+      if (charac_data.hasOwnProperty("step")) {
+        buf_gadget["characteristics"][characteristic]["step"] = Number(charac_data["step"]);
+      } else {
+        buf_gadget["characteristics"][characteristic]["step"] = 1;
+      }
+    }
+  }
+
+  // remotes
+  buf_gadget["remotes"] = [];
+  if (remotes !== undefined) {
+    for (let remote of remote_types) {
+      if (remotes.includes(remote)) {
+        buf_gadget["remotes"].push(remote);
+      }
+    }
+  }
+  let existing_gadget = get_gadget(gadget_name);
+  if (existing_gadget) {
+    if (existing_gadget["service"] === buf_gadget["service"]) {
+      console.log(`[i] Updating "${service}" ${gadget_name}`);
+    } else {
+      console.log(`[i] Updating ${gadget_name}: "${existing_gadget["service"]}" => "${service}"`);
+    }
+    gadgets = gadgets.filter(item => item !== existing_gadget);
+    gadgets.push(buf_gadget);
+  } else {
+    console.log(`[i] Adding new "${service}" ${gadget_name}`);
+    gadgets.push(buf_gadget);
+  }
+  console.log(gadgets);
+};
+
 let get_network_types = () => {
   return ["mqtt"];
 }
@@ -140,6 +207,23 @@ let respond_mqtt = (id, status) => {
   mqtt_client.publish("smarthome/from/response", `"request_id": ${id}, "status": "${status}"`);
 };
 
+let check_body = (message, needed_keys) => {
+  let body;
+  try {
+    body = JSON.parse(message);
+  } catch (error) {
+    console.log("[x] Cannot parse Body");
+    return false;
+  }
+  for (let k = 1; k < needed_keys.length; k++) {
+    if (body[needed_keys[k]] === undefined) {
+      console.log(`[x] Argument missing: ${needed_keys[k]}`);
+      return false;
+    }
+  }
+  return body;
+};
+
 mqtt_client.on('connect', () => {
   console.log("[MQTT] Launching Smarthome MQTT Gateway");
   mqtt_client.subscribe('smarthome/#')
@@ -150,13 +234,11 @@ mqtt_client.on('message', (topic, message) => {
   if (topic.startsWith('smarthome/to/') || topic.startsWith('smarthome/status')) {
     console.log(`[MQTT] Topic: ${topic}, Message: ${message}`);
     try {
-      let body = JSON.parse(message.toString());
-      if (body === undefined) {
-        console.log("[x] Broken JSON");
-      }
-      try {
-        if (topic.startsWith('smarthome/to/gadget/add')) {
-          if (body["id"] !== undefined) {
+      let body;
+      switch (topic) {
+        case 'smarthome/to/client/add':
+          body = check_body(message.toString(), ["id"])
+          if (body) {
             let network = {};
             network["type"] = "mqtt";
             let req_id;
@@ -172,12 +254,17 @@ mqtt_client.on('message', (topic, message) => {
               respond_mqtt(req_id, "ERR");
               console.log("[i] ERR");
             }
-          } else {
-            console.log("[x] Missing Objects in JSON");
           }
-
-        } else if (topic.startsWith('smarthome/to/code')) {
-          if (body["type"] !== undefined && body["code"] !== undefined && body["timestamp"] !== undefined) {
+          break;
+        case 'smarthome/to/gadget/add':
+          body = check_body(message.toString(), ["name", "service", "characteristics"])
+          if (body) {
+            add_gadget(body["name"], body["service"], body["characteristics"]);
+          }
+          break;
+        case 'smarthome/to/code':
+          body = check_body(message.toString(), ["type", "code", "timestamp"])
+          if (body) {
             let req_id;
             try {
               req_id = body["request_id"];
@@ -189,18 +276,16 @@ mqtt_client.on('message', (topic, message) => {
             } else {
               respond_mqtt(req_id, "ERR");
             }
-          } else {
-            console.log("[x] Missing Objects in JSON");
           }
-
-        } else if (topic.startsWith('smarthome/to/time')) {
+          break;
+        case 'smarthome/to/time':
           mqtt_client.publish("smarthome/from/time", String(get_time()));
-        }
-      } catch (error) {
-        console.log("[x] " + error);
+          break;
+        default:
+          console.log("[x] Unknown Message");
       }
     } catch (error) {
-      console.log("[x] Cannot parse Body");
+      console.log("[x] " + error);
     }
   }
 })
@@ -294,6 +379,11 @@ http_gateway.get('/time', (req, res) => {
   console.log(`[i] Client asking for time...`);
   let time_str = `${time}`;
   res.status(200).send(time_str);
+});
+
+http_gateway.get('/gadgets', (req, res) => {
+  console.log(`[i] Client asking for gadgets...`);
+  res.status(200).send(JSON.stringify(gadgets));
 });
 
 function checkAcceptHeader(req) {
