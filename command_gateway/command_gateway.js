@@ -3,48 +3,27 @@
 * NAMESPACE
 */
 const http = require('http');
-let SERVER = process.env.HOST;
-if (SERVER === undefined) {
-  SERVER = "localhost";
-}
-const PORT = 3006;
+const mqtt = require('mqtt');
+
+// Basic
 
 let clients = [];
 
-let add_client = (id, host, port) => {
-  if (host === undefined || port === undefined || id === undefined) {
-    return false;
-  }
-  for (let client of clients) {
-    if (client["id"] === id) {
-      client["hostname"] = host;
-      client["port"] = port;
-      console.log(`[i] Client '${id}' updated: (${host}:${port})`);
-      return true;
-    }
-  }
-  clients.push({id: id, hostname: host, port: port});
-  return true;
-};
+let codes = {};
 
-let express = require('express');
-let bodyParser = require('body-parser');
-let gateway = express();
-
-gateway.use(bodyParser.json());
-
-function makeid(length) {
-  var result = '';
-  var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  var charactersLength = characters.length;
-  for (var i = 0; i < length; i++) {
+function make_id(length) {
+  let result = '';
+  let characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let charactersLength = characters.length;
+  for (let i = 0; i < length; i++) {
     result += characters.charAt(Math.floor(Math.random() * charactersLength));
   }
   return result;
 }
 
 let get_time = () => {
-  return (new Date().valueOf());
+  let time = new Date().valueOf();
+  return time;
 };
 
 let forward_command = (command) => {
@@ -54,7 +33,7 @@ let forward_command = (command) => {
 
   if (in_timestamp === undefined && in_command === undefined) {
     console.log(`[x] Received illegal command data`);
-    return false;
+    // return false;
   }
 
   if (in_timestamp === undefined) {
@@ -85,6 +64,160 @@ let forward_command = (command) => {
   }
   return true;
 };
+
+let add_client = (id, network) => {
+  if (network["type"] === undefined || id === undefined) {
+    return false;
+  }
+  for (let client of clients) {
+    if (client["id"] === id) {
+      client["network"] = network;
+      console.log(`[i] Client '${id}' updated: (${JSON.stringify(network)})`);
+      return true;
+    }
+  }
+  console.log(`[i] Client '${id}' added: (${JSON.stringify(network)})`);
+  clients.push({id: id, network: network});
+  return true;
+};
+
+let get_network_types = () => {
+  return ["mqtt"];
+}
+
+let forward_code = (type, code, timestamp) => {
+  let network_types = get_network_types();
+  if (network_types.includes("mqtt")) {
+    let res_json = {};
+    res_json["type"] = type;
+    res_json["code"] = code;
+    res_json["timestamp"] = timestamp;
+    mqtt_client.publish("smarthome/from/code", JSON.stringify(res_json));
+  }
+}
+
+let handle_code = (type, code, timestamp) => {
+  let ident = `${type}_${code}`;
+
+  if (timestamp > get_time()) {
+    console.log("  [x] Cannot add code: timestamp is in the future");
+    return false;
+  }
+
+  // if (timestamp + 2000 < get_time()) {
+  //   console.log("  [x] Cannot add code: timestamp is too far in the past");
+  //   return false;
+  // }
+
+  if (codes[ident] !== undefined) {
+    if (codes[ident] > timestamp + 150) {
+      console.log("  [i] Code not forwarded: doubled code");
+      return true;
+    }
+    console.log("  [i] Code forwarded");
+    forward_code(type, code, timestamp);
+    codes[ident] = timestamp;
+    console.log(codes);
+  } else {
+    console.log("  [i] Code forwarded");
+    forward_code(type, code, timestamp);
+    codes[ident] = timestamp;
+    console.log(codes);
+  }
+  return true;
+};
+
+// MQTT
+
+let MQTT_SERVER = process.env.HOST;
+if (MQTT_SERVER === undefined) {
+  MQTT_SERVER = "mqtt://mosquitto";
+}
+const MQTT_PORT = 1883;
+const mqtt_client = mqtt.connect(`${MQTT_SERVER}:${MQTT_PORT}`)
+
+let respond_mqtt = (id, status) => {
+  mqtt_client.publish("smarthome/from/response", `"request_id": ${id}, "status": "${status}"`);
+};
+
+mqtt_client.on('connect', () => {
+  console.log("[MQTT] Launching Smarthome MQTT Gateway");
+  mqtt_client.subscribe('smarthome/#')
+  mqtt_client.publish('smarthome/status', 'Bridge launched')
+})
+
+mqtt_client.on('message', (topic, message) => {
+  if (topic.startsWith('smarthome/to/') || topic.startsWith('smarthome/status')) {
+    console.log(`[MQTT] Topic: ${topic}, Message: ${message}`);
+    try {
+      let body = JSON.parse(message.toString());
+      if (body === undefined) {
+        console.log("[x] Broken JSON");
+      }
+      try {
+        if (topic.startsWith('smarthome/to/gadget/add')) {
+          if (body["id"] !== undefined) {
+            let network = {};
+            network["type"] = "mqtt";
+            let req_id;
+            try {
+              req_id = body["request_id"];
+            } catch (error) {
+              req_id = 0;
+            }
+            if (add_client(body["id"], network)) {
+              respond_mqtt(req_id, "ACK");
+              console.log("[i] ACK");
+            } else {
+              respond_mqtt(req_id, "ERR");
+              console.log("[i] ERR");
+            }
+          } else {
+            console.log("[x] Missing Objects in JSON");
+          }
+
+        } else if (topic.startsWith('smarthome/to/code')) {
+          if (body["type"] !== undefined && body["code"] !== undefined && body["timestamp"] !== undefined) {
+            let req_id;
+            try {
+              req_id = body["request_id"];
+            } catch (error) {
+              req_id = 0;
+            }
+            if (handle_code(String(body["type"]), Number(body["code"]), Number(body["timestamp"]))) {
+              respond_mqtt(req_id, "ACK");
+            } else {
+              respond_mqtt(req_id, "ERR");
+            }
+          } else {
+            console.log("[x] Missing Objects in JSON");
+          }
+
+        } else if (topic.startsWith('smarthome/to/time')) {
+          mqtt_client.publish("smarthome/from/time", String(get_time()));
+        }
+      } catch (error) {
+        console.log("[x] " + error);
+      }
+    } catch (error) {
+      console.log("[x] Cannot parse Body");
+    }
+  }
+})
+
+// HTTP
+
+let HTTP_SERVER = process.env.HOST;
+if (HTTP_SERVER === undefined) {
+  HTTP_SERVER = "localhost";
+}
+const HTTP_PORT = 3006;
+
+let express = require('express');
+let bodyParser = require('body-parser');
+let http_gateway = express();
+
+http_gateway.use(bodyParser.json());
 
 let forward_command_to_client = (command, client) => {
   let out_str = JSON.stringify(command);
@@ -126,9 +259,10 @@ let forward_command_to_client = (command, client) => {
   req.end();
 };
 
-gateway.post('/command', (req, res) => {
+http_gateway.post('/command', (req, res) => {
   let in_timestamp = req.body["timestamp"];
   let in_command = req.body["command"];
+  console.log(req.body);
   let out_json = {
     timestamp: in_timestamp,
     command: in_command
@@ -140,20 +274,22 @@ gateway.post('/command', (req, res) => {
     res.status(400).send("Error");
 });
 
-gateway.post('/login', (req, res) => {
+http_gateway.post('/login', (req, res) => {
   let con_parts = req.connection.remoteAddress.split(":");
   let ip = con_parts[con_parts.length - 1];
   let new_id = req.body["id"];
-  let new_host = ip;
-  let new_port = req.body["port"];
-  if (add_client(new_id, new_host, new_port)) {
+  let network = {};
+  network["type"] = "http";
+  network["ip"] = ip;
+  network["port"] = req.body["port"];
+  if (add_client(new_id, network)) {
     res.status(200).send("Client registered");
   } else {
-    res.status(400).send("[x] Adding Client failed.");
+    res.status(400).send("Adding Client failed.");
   }
 });
 
-gateway.get('/time', (req, res) => {
+http_gateway.get('/time', (req, res) => {
   let time = get_time();
   console.log(`[i] Client asking for time...`);
   let time_str = `${time}`;
@@ -174,4 +310,4 @@ function checkContentHeader(req) {
   return req.headers["Content-Type"] === "application/json" || req.headers["Content-Type"] === "*/*";
 }
 
-gateway.listen(PORT, () => console.log("[i] Launching Smarthome Command Gateway: " + SERVER + ":" + PORT));
+http_gateway.listen(HTTP_PORT, () => console.log("[i] Launching Smarthome REST Gateway: " + HTTP_SERVER + ":" + HTTP_PORT));

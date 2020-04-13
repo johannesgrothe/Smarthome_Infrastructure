@@ -5,6 +5,7 @@
   "main": "command_gateway.js",
   "dependencies": {
     "express": "^4.17.1",
-    "body-parser": "latest"
+    "body-parser": "latest",
+    "mqtt": "^3.0.0"
   }
 }
