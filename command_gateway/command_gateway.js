@@ -4,10 +4,13 @@
 */
 const http = require('http');
 const mqtt = require('mqtt');
+let deepEqual = require('deep-equal');
 
 // Basic
 
 const remote_types = ["homebridge"];
+
+const hb_update_id = 1213141516;
 
 let clients = [];
 
@@ -15,58 +18,9 @@ let gadgets = [];
 
 let codes = {};
 
-function make_id(length) {
-  let result = '';
-  let characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let charactersLength = characters.length;
-  for (let i = 0; i < length; i++) {
-    result += characters.charAt(Math.floor(Math.random() * charactersLength));
-  }
-  return result;
-}
-
 let get_time = () => {
   let time = new Date().valueOf();
   return time;
-};
-
-let forward_command = (command) => {
-  let local_time = get_time();
-  let in_timestamp = command["timestamp"];
-  let in_command = command["command"];
-
-  if (in_timestamp === undefined && in_command === undefined) {
-    console.log(`[x] Received illegal command data`);
-    // return false;
-  }
-
-  if (in_timestamp === undefined) {
-    console.log(`[x] Couldn't forward Command '${in_command}': No Timestamp found.`);
-    return false;
-  }
-
-  if (in_command === undefined) {
-    console.log(`[x] Couldn't forward Command: Timestamp found but Command missing.`);
-    return false;
-  }
-
-  /*
-    if (in_timestamp >= (local_time + 20)) {
-      console.log(`[x] Couldn't forward Command '${in_command}': Timestamp is in the future.`);
-      return false;
-    }
-
-    if (in_timestamp <= (local_time + -100)) {
-      console.log(`[x] Couldn't forward Command '${in_command}': Command outdated.`);
-      return false;
-    }
-  */
-
-  console.log(`[i] Forwarding command '${in_command}' to ${clients.length} clients`);
-  for (let client of clients) {
-    forward_command_to_client(command, client);
-  }
-  return true;
 };
 
 let add_client = (id, network) => {
@@ -92,7 +46,17 @@ let get_gadget = (gadget_name) => {
     }
   }
   return false;
-}
+};
+
+let update_remotes = (gadget_name) => {
+  console.log("[i] Updating remotes");
+  let gadget = get_gadget(gadget_name);
+  if (gadget) {
+    if (gadget["remotes"].includes("homebridge")) {
+      start_homebridge_update(gadget_name);
+    }
+  }
+};
 
 let add_gadget = (gadget_name, service, characteristics, remotes) => {
   let buf_gadget = {};
@@ -134,18 +98,19 @@ let add_gadget = (gadget_name, service, characteristics, remotes) => {
   }
   let existing_gadget = get_gadget(gadget_name);
   if (existing_gadget) {
-    if (existing_gadget["service"] === buf_gadget["service"]) {
-      console.log(`[i] Updating "${service}" ${gadget_name}`);
+    if (deepEqual(existing_gadget, buf_gadget)) {
+      console.log(`[✓] No need for update`);
     } else {
-      console.log(`[i] Updating ${gadget_name}: "${existing_gadget["service"]}" => "${service}"`);
+      console.log(`[✓] Updating "${existing_gadget["service"]} ${gadget_name}`);
+      gadgets = gadgets.filter(item => item !== existing_gadget);
+      gadgets.push(buf_gadget);
+      update_remotes(gadget_name);
     }
-    gadgets = gadgets.filter(item => item !== existing_gadget);
-    gadgets.push(buf_gadget);
   } else {
-    console.log(`[i] Adding new "${service}" ${gadget_name}`);
+    console.log(`[✓] Adding new "${service}" ${gadget_name}`);
     gadgets.push(buf_gadget);
+    update_remotes(gadget_name);
   }
-  console.log(gadgets);
 };
 
 let get_network_types = () => {
@@ -194,8 +159,93 @@ let handle_code = (type, code, timestamp) => {
   return true;
 };
 
-// MQTT
 
+// Homebridge
+let start_homebridge_update = (gadget_name) => {
+  console.log("[i] Starting Homebridge Update");
+  let payload = {};
+  payload["name"] = gadget_name;
+  payload["request_id"] = hb_update_id;
+  mqtt_client.publish("homebridge/to/get", JSON.stringify(payload));
+};
+
+let convert_name_to_homebridge = (name) => {
+  switch (name) {
+    case "lightbulb":
+      return "Lightbulb"
+    default:
+      return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+};
+
+let finish_homebridge_update = (response_json) => {
+  let generate_homebridge_json = (gadget_json) => {
+    let gadget_name = gadget_json["name"];
+    let homebridge_json = {};
+    homebridge_json["request_id"] = hb_update_id;
+    homebridge_json["name"] = gadget_name;
+    homebridge_json["name"] = gadget_name;
+    homebridge_json["service"] = convert_name_to_homebridge(gadget_json["service"]);
+
+    let add_characteristic = (charac_name) => {
+      if (gadget_json["characteristics"].hasOwnProperty(charac_name)) {
+        let hb_charac_name = convert_name_to_homebridge(charac_name);
+        homebridge_json[hb_charac_name] = {};
+        homebridge_json[hb_charac_name]["min"] = gadget_json["characteristics"][charac_name]["min"];
+        homebridge_json[hb_charac_name]["max"] = gadget_json["characteristics"][charac_name]["max"];
+        homebridge_json[hb_charac_name]["step"] = gadget_json["characteristics"][charac_name]["step"];
+      }
+    };
+
+    if (gadget_json["service"] === "lightbulb") {
+      add_characteristic("brightness");
+      add_characteristic("saturation");
+      add_characteristic("hue");
+    }
+    if (gadget_json["service"] === "fan") {
+      add_characteristic("rotationspeed");
+    }
+    console.log(homebridge_json);
+    return homebridge_json;
+  };
+
+  // console.log("[i] Executing Homebridge Update");
+  if (response_json.hasOwnProperty("ack")) {
+    // Gadget deleted or not found
+    if (response_json["ack"]) {
+      console.log(`[✓] ${response_json["message"]}`);
+    } else {
+      console.log(`[x] ${response_json["message"]}`);
+    }
+    let name = response_json["message"].match(/'(.+?)'/g)[0];
+    name = name.substr(1, name.length - 2);
+    if (response_json["message"] === `accessory '${name}', service_name '${name}' is added.`) {
+      return;
+    }
+    let buf_gadget = get_gadget(name);
+    let homebridge_json = generate_homebridge_json(buf_gadget);
+    console.log("[i] Re-adding Gadget " + name);
+    mqtt_client.publish("homebridge/to/add", JSON.stringify(homebridge_json));
+  } else {
+    // Gadget Found
+    if (Object.keys(response_json).length === 2) {
+      let gadget_name = Object.keys(response_json)[0];
+      if (gadget_name === "request_id") {
+        gadget_name = Object.keys(response_json)[1];
+      }
+      let payload = {};
+      payload["name"] = gadget_name;
+      payload["request_id"] = hb_update_id;
+      console.log("[i] Deleting homebridge-config");
+      mqtt_client.publish("homebridge/to/remove", JSON.stringify(payload));
+    } else {
+      console.log(`[x] Response-json length: ${Object.keys(response_json).length}`);
+    }
+  }
+};
+
+
+// MQTT
 let MQTT_SERVER = process.env.HOST;
 if (MQTT_SERVER === undefined) {
   MQTT_SERVER = "mqtt://mosquitto";
@@ -226,12 +276,14 @@ let check_body = (message, needed_keys) => {
 
 mqtt_client.on('connect', () => {
   console.log("[MQTT] Launching Smarthome MQTT Gateway");
-  mqtt_client.subscribe('smarthome/#')
-  mqtt_client.publish('smarthome/status', 'Bridge launched')
+  mqtt_client.subscribe('smarthome/#');
+  mqtt_client.publish('smarthome/status', 'Bridge launched');
+
+  mqtt_client.subscribe('homebridge/from/response');
 })
 
 mqtt_client.on('message', (topic, message) => {
-  if (topic.startsWith('smarthome/to/') || topic.startsWith('smarthome/status')) {
+  if (topic.startsWith('smarthome/to/') || topic.startsWith('smarthome/status') || topic === 'homebridge/from/response') {
     console.log(`[MQTT] Topic: ${topic}, Message: ${message}`);
     try {
       let body;
@@ -259,7 +311,7 @@ mqtt_client.on('message', (topic, message) => {
         case 'smarthome/to/gadget/add':
           body = check_body(message.toString(), ["name", "service", "characteristics"])
           if (body) {
-            add_gadget(body["name"], body["service"], body["characteristics"]);
+            add_gadget(body["name"], body["service"], body["characteristics"], body["remotes"]);
           }
           break;
         case 'smarthome/to/code':
@@ -281,6 +333,15 @@ mqtt_client.on('message', (topic, message) => {
         case 'smarthome/to/time':
           mqtt_client.publish("smarthome/from/time", String(get_time()));
           break;
+        case 'homebridge/from/response':
+          body = check_body(message.toString(), ["request_id"])
+          if (body) {
+            console.log(body);
+            if (body["request_id"] === hb_update_id) {
+              finish_homebridge_update(body);
+            }
+          }
+          break;
         default:
           console.log("[x] Unknown Message");
       }
@@ -288,10 +349,10 @@ mqtt_client.on('message', (topic, message) => {
       console.log("[x] " + error);
     }
   }
-})
+});
+
 
 // HTTP
-
 let HTTP_SERVER = process.env.HOST;
 if (HTTP_SERVER === undefined) {
   HTTP_SERVER = "localhost";
@@ -304,86 +365,14 @@ let http_gateway = express();
 
 http_gateway.use(bodyParser.json());
 
-let forward_command_to_client = (command, client) => {
-  let out_str = JSON.stringify(command);
-
-  const request_options = {
-    hostname: client.hostname,
-    port: client.port,
-    path: "/command",
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  };
-
-  const req = http.request(request_options, (response) => {
-    let data = '';
-
-    response.on('data', (chunk) => {
-      data += chunk;
-    });
-
-    response.on('end', () => {
-      if (response.statusCode === 200) {
-        console.log(`    [✓] ${client.id}`)
-      } else {
-        console.log(`   [x] ${client.id}`)
-      }
-    });
-
-    response.on('error', () => {
-      console.log(`   [x] ${client.id}`)
-    });
-
-  }).on("error", (err) => {
-    console.log(`   [x] ${client.id}`)
-  });
-
-  req.write(out_str);
-  req.end();
-};
-
-http_gateway.post('/command', (req, res) => {
-  let in_timestamp = req.body["timestamp"];
-  let in_command = req.body["command"];
-  console.log(req.body);
-  let out_json = {
-    timestamp: in_timestamp,
-    command: in_command
-  };
-  let forward_status = forward_command(out_json);
-  if (forward_status)
-    res.status(200).send("OK");
-  else
-    res.status(400).send("Error");
-});
-
-http_gateway.post('/login', (req, res) => {
-  let con_parts = req.connection.remoteAddress.split(":");
-  let ip = con_parts[con_parts.length - 1];
-  let new_id = req.body["id"];
-  let network = {};
-  network["type"] = "http";
-  network["ip"] = ip;
-  network["port"] = req.body["port"];
-  if (add_client(new_id, network)) {
-    res.status(200).send("Client registered");
-  } else {
-    res.status(400).send("Adding Client failed.");
-  }
-});
-
-http_gateway.get('/time', (req, res) => {
-  let time = get_time();
-  console.log(`[i] Client asking for time...`);
-  let time_str = `${time}`;
-  res.status(200).send(time_str);
-});
-
 http_gateway.get('/gadgets', (req, res) => {
   console.log(`[i] Client asking for gadgets...`);
   res.status(200).send(JSON.stringify(gadgets));
+});
+
+http_gateway.get('/clients', (req, res) => {
+  console.log(`[i] Client asking for clients...`);
+  res.status(200).send(JSON.stringify(clients));
 });
 
 function checkAcceptHeader(req) {

@@ -4,8 +4,9 @@
   "description": "Gateway to forward HEX Commands to other Controllers",
   "main": "command_gateway.js",
   "dependencies": {
-    "express": "^4.17.1",
     "body-parser": "latest",
+    "deep-equal": "^2.0.2",
+    "express": "^4.17.1",
     "mqtt": "^3.0.0"
   }
 }
