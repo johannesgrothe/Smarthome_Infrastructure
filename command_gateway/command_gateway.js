@@ -10,18 +10,184 @@ let deepEqual = require('deep-equal');
 
 const remote_types = ["homebridge"];
 
-const hb_update_id = 1213141516;
+let get_time = () => {
+  return new Date().valueOf();
+};
 
+// Homebridge
+let homebridge_remote = () => {
+  const update_id = 1331441551;
+
+  let updates_blocked = false;
+
+  let convert_naming = (name) => {
+    switch (name) {
+      case "rotationspeed":
+        return "RotationSpeed"
+      default:
+        return name.charAt(0).toUpperCase() + name.slice(1);
+    }
+  }
+
+  let generate_hb_json = (gadget_json) => {
+    let gadget_name = gadget_json["name"];
+    let homebridge_json = {};
+    homebridge_json["request_id"] = update_id;
+    homebridge_json["name"] = gadget_name;
+    homebridge_json["name"] = gadget_name;
+    homebridge_json["service"] = convert_naming(gadget_json["service"]);
+
+    let add_characteristic = (charac_name) => {
+      if (gadget_json["characteristics"].hasOwnProperty(charac_name)) {
+        let hb_charac_name = convert_naming(charac_name);
+        homebridge_json[hb_charac_name] = {};
+        homebridge_json[hb_charac_name]["minValue"] = gadget_json["characteristics"][charac_name]["min"];
+        homebridge_json[hb_charac_name]["maxValue"] = gadget_json["characteristics"][charac_name]["max"];
+        homebridge_json[hb_charac_name]["minStep"] = gadget_json["characteristics"][charac_name]["step"];
+        homebridge_json[hb_charac_name]["maxStep"] = gadget_json["characteristics"][charac_name]["step"] + 1;
+      }
+    };
+
+    if (gadget_json["service"] === "lightbulb") {
+      add_characteristic("brightness");
+      add_characteristic("saturation");
+      add_characteristic("hue");
+    }
+    if (gadget_json["service"] === "fan") {
+      add_characteristic("rotationspeed");
+    }
+    return homebridge_json;
+  };
+
+  let block_updates = () => {
+    console.log("[i] Blocking Homebridge Updates");
+    updates_blocked = true;
+  };
+
+  let unblock_updates = () => {
+    console.log("[i] Unblocking Homebridge Updates");
+    updates_blocked = false;
+  };
+
+  return {
+    get_update_id: () => {
+      return update_id;
+    },
+    start_update: (gadget_name) => {
+      console.log("[i] Starting Homebridge Update");
+      let payload = {};
+      payload["name"] = gadget_name;
+      payload["request_id"] = update_id;
+      mqtt_client.publish("homebridge/to/get", JSON.stringify(payload));
+    },
+    finish_update: (response_json) => {
+      if (response_json.hasOwnProperty("ack")) {
+        // Gadget deleted or not found
+        if (response_json["ack"]) {
+          console.log(`[✓] ${response_json["message"]}`);
+        } else {
+          console.log(`[x] ${response_json["message"]}`);
+        }
+        let name = response_json["message"].match(/'(.+?)'/g)[0];
+        name = name.substr(1, name.length - 2);
+        if (response_json["message"] === `accessory '${name}', service_name '${name}' is added.`) {
+          return;
+        }
+        let buf_gadget = get_gadget(name);
+        let homebridge_json = generate_hb_json(buf_gadget);
+        console.log("[i] Re-adding Gadget " + name);
+        mqtt_client.publish("homebridge/to/add", JSON.stringify(homebridge_json));
+      } else {
+        // Gadget Found
+        if (Object.keys(response_json).length === 2) {
+          let gadget_name = Object.keys(response_json)[0];
+          if (gadget_name === "request_id") {
+            gadget_name = Object.keys(response_json)[1];
+          }
+          let payload = {};
+          payload["name"] = gadget_name;
+          payload["request_id"] = update_id;
+          console.log("[i] Deleting homebridge-config");
+          mqtt_client.publish("homebridge/to/remove", JSON.stringify(payload));
+        } else {
+          console.log(`[x] Response-json length: ${Object.keys(response_json).length}`);
+        }
+      }
+    },
+    update_characteristic: (gadget_name, service, characteristic, value) => {
+      if (!updates_blocked) {
+        let payload = {};
+        payload["name"] = gadget_name;
+        payload["service_name"] = gadget_name;
+        payload["service_type"] = convert_naming(service);
+        payload["characteristic"] = convert_naming(characteristic);
+        payload["value"] = value;
+        payload["request_id"] = update_id;
+        mqtt_client.publish("homebridge/to/set", JSON.stringify(payload));
+      }
+    },
+    handle_update: (update_json) => {
+      console.log("[i] Gadget Update Requested from Homebridge");
+      block_updates();
+      update_gadget(update_json["name"], update_json["characteristic"].toLowerCase(), Number(update_json["value"]));
+      unblock_updates();
+    }
+  }
+};
+let homebridge = homebridge_remote();
+
+// Codes
+let code_remote = () => {
+  let codes = {};
+  let forward_code = (type, code, timestamp) => {
+    let network_types = get_network_types();
+    if (network_types.includes("mqtt")) {
+      let res_json = {};
+      res_json["type"] = type;
+      res_json["code"] = code;
+      res_json["timestamp"] = timestamp;
+      mqtt_client.publish("smarthome/from/code", JSON.stringify(res_json));
+    }
+  };
+  return {
+    handle_code: (type, code, timestamp) => {
+      let ident = `${type}_${code}`;
+
+      if (timestamp > get_time()) {
+        console.log("  [x] Cannot add code: timestamp is in the future");
+        return false;
+      }
+
+      // if (timestamp + 2000 < get_time()) {
+      //   console.log("  [x] Cannot add code: timestamp is too far in the past");
+      //   return false;
+      // }
+
+      if (codes[ident] !== undefined) {
+        if (codes[ident] > timestamp + 150) {
+          console.log("  [i] Code not forwarded: doubled code");
+          return true;
+        }
+        console.log("  [i] Code forwarded");
+        forward_code(type, code, timestamp);
+        codes[ident] = timestamp;
+        console.log(codes);
+      } else {
+        console.log("  [i] Code forwarded");
+        forward_code(type, code, timestamp);
+        codes[ident] = timestamp;
+        console.log(codes);
+      }
+      return true;
+    }
+  }
+};
+let code_manager = code_remote();
+
+// Main
 let clients = [];
 
 let gadgets = [];
-
-let codes = {};
-
-let get_time = () => {
-  let time = new Date().valueOf();
-  return time;
-};
 
 let add_client = (id, network) => {
   if (network["type"] === undefined || id === undefined) {
@@ -53,7 +219,7 @@ let update_remotes = (gadget_name) => {
   let gadget = get_gadget(gadget_name);
   if (gadget) {
     if (gadget["remotes"].includes("homebridge")) {
-      start_homebridge_update(gadget_name);
+      homebridge.start_update(gadget_name);
     }
   }
 };
@@ -63,7 +229,7 @@ let update_remote_characteristic = (gadget_name, characteristic, value) => {
   let gadget = get_gadget(gadget_name);
   if (gadget) {
     if (gadget["remotes"].includes("homebridge")) {
-      update_homebridge_characteristic(gadget_name, gadget["service"], characteristic, value);
+      homebridge.update_characteristic(gadget_name, gadget["service"], characteristic, value);
     }
   }
 };
@@ -159,152 +325,6 @@ let get_network_types = () => {
   return ["mqtt"];
 }
 
-let forward_code = (type, code, timestamp) => {
-  let network_types = get_network_types();
-  if (network_types.includes("mqtt")) {
-    let res_json = {};
-    res_json["type"] = type;
-    res_json["code"] = code;
-    res_json["timestamp"] = timestamp;
-    mqtt_client.publish("smarthome/from/code", JSON.stringify(res_json));
-  }
-}
-
-let handle_code = (type, code, timestamp) => {
-  let ident = `${type}_${code}`;
-
-  if (timestamp > get_time()) {
-    console.log("  [x] Cannot add code: timestamp is in the future");
-    return false;
-  }
-
-  // if (timestamp + 2000 < get_time()) {
-  //   console.log("  [x] Cannot add code: timestamp is too far in the past");
-  //   return false;
-  // }
-
-  if (codes[ident] !== undefined) {
-    if (codes[ident] > timestamp + 150) {
-      console.log("  [i] Code not forwarded: doubled code");
-      return true;
-    }
-    console.log("  [i] Code forwarded");
-    forward_code(type, code, timestamp);
-    codes[ident] = timestamp;
-    console.log(codes);
-  } else {
-    console.log("  [i] Code forwarded");
-    forward_code(type, code, timestamp);
-    codes[ident] = timestamp;
-    console.log(codes);
-  }
-  return true;
-};
-
-
-// Homebridge
-let block_updates = false;
-
-let start_homebridge_update = (gadget_name) => {
-  console.log("[i] Starting Homebridge Update");
-  let payload = {};
-  payload["name"] = gadget_name;
-  payload["request_id"] = hb_update_id;
-  mqtt_client.publish("homebridge/to/get", JSON.stringify(payload));
-};
-
-let convert_name_to_homebridge = (name) => {
-  switch (name) {
-    case "lightbulb":
-      return "Lightbulb"
-    default:
-      return name.charAt(0).toUpperCase() + name.slice(1);
-  }
-};
-
-let finish_homebridge_update = (response_json) => {
-  let generate_homebridge_json = (gadget_json) => {
-    let gadget_name = gadget_json["name"];
-    let homebridge_json = {};
-    homebridge_json["request_id"] = hb_update_id;
-    homebridge_json["name"] = gadget_name;
-    homebridge_json["name"] = gadget_name;
-    homebridge_json["service"] = convert_name_to_homebridge(gadget_json["service"]);
-
-    let add_characteristic = (charac_name) => {
-      if (gadget_json["characteristics"].hasOwnProperty(charac_name)) {
-        let hb_charac_name = convert_name_to_homebridge(charac_name);
-        homebridge_json[hb_charac_name] = {};
-        homebridge_json[hb_charac_name]["min"] = gadget_json["characteristics"][charac_name]["min"];
-        homebridge_json[hb_charac_name]["max"] = gadget_json["characteristics"][charac_name]["max"];
-        homebridge_json[hb_charac_name]["step"] = gadget_json["characteristics"][charac_name]["step"];
-      }
-    };
-
-    if (gadget_json["service"] === "lightbulb") {
-      add_characteristic("brightness");
-      add_characteristic("saturation");
-      add_characteristic("hue");
-    }
-    if (gadget_json["service"] === "fan") {
-      add_characteristic("rotationspeed");
-    }
-    return homebridge_json;
-  };
-
-  if (response_json.hasOwnProperty("ack")) {
-    // Gadget deleted or not found
-    if (response_json["ack"]) {
-      console.log(`[✓] ${response_json["message"]}`);
-    } else {
-      console.log(`[x] ${response_json["message"]}`);
-    }
-    let name = response_json["message"].match(/'(.+?)'/g)[0];
-    name = name.substr(1, name.length - 2);
-    if (response_json["message"] === `accessory '${name}', service_name '${name}' is added.`) {
-      return;
-    }
-    let buf_gadget = get_gadget(name);
-    let homebridge_json = generate_homebridge_json(buf_gadget);
-    console.log("[i] Re-adding Gadget " + name);
-    mqtt_client.publish("homebridge/to/add", JSON.stringify(homebridge_json));
-  } else {
-    // Gadget Found
-    if (Object.keys(response_json).length === 2) {
-      let gadget_name = Object.keys(response_json)[0];
-      if (gadget_name === "request_id") {
-        gadget_name = Object.keys(response_json)[1];
-      }
-      let payload = {};
-      payload["name"] = gadget_name;
-      payload["request_id"] = hb_update_id;
-      console.log("[i] Deleting homebridge-config");
-      mqtt_client.publish("homebridge/to/remove", JSON.stringify(payload));
-    } else {
-      console.log(`[x] Response-json length: ${Object.keys(response_json).length}`);
-    }
-  }
-};
-
-let update_homebridge_characteristic = (gadget_name, service, characteristic, value) => {
-  if (!block_updates) {
-    let payload = {};
-    payload["name"] = gadget_name;
-    payload["service_name"] = gadget_name;
-    payload["service_type"] = convert_name_to_homebridge(service);
-    payload["characteristic"] = convert_name_to_homebridge(characteristic);
-    payload["value"] = value;
-    payload["request_id"] = hb_update_char_id;
-    mqtt_client.publish("homebridge/to/set", JSON.stringify(payload));
-  }
-};
-
-let handle_homebridge_update = (update_json) => {
-  console.log("[i] Gadget Update Requested from Homebridge");
-  block_updates = true;
-  update_gadget(update_json["name"], update_json["characteristic"].toLowerCase(), Number(update_json["value"]));
-  block_updates = false;
-};
 
 // MQTT
 let MQTT_SERVER = process.env.MQTT_HOST;
@@ -400,7 +420,7 @@ mqtt_client.on('message', (topic, message) => {
             } catch (error) {
               req_id = 0;
             }
-            if (handle_code(String(body["type"]), Number(body["code"]), Number(body["timestamp"]))) {
+            if (code_manager.handle_code(String(body["type"]), Number(body["code"]), Number(body["timestamp"]))) {
               respond_mqtt(req_id, "ACK");
             } else {
               respond_mqtt(req_id, "ERR");
@@ -413,15 +433,15 @@ mqtt_client.on('message', (topic, message) => {
         case 'homebridge/from/response':
           body = check_body(message.toString(), ["request_id"])
           if (body) {
-            if (body["request_id"] === hb_update_id) {
-              finish_homebridge_update(body);
+            if (body["request_id"] === homebridge.get_update_id()) {
+              homebridge.finish_update(body);
             }
           }
           break;
         case 'homebridge/from/set':
           body = check_body(message.toString(), ["name", "characteristic", "value"])
           if (body) {
-            handle_homebridge_update(body);
+            homebridge.handle_update(body);
           }
           break;
         default:
@@ -454,7 +474,7 @@ http_gateway.get('/gadgets', (req, res) => {
 
 http_gateway.get('/clients', (req, res) => {
   console.log(`[i] Client asking for clients...`);
-  res.status(200).send(JSON.stringify(clients));
+  res.status(200).send(clients);
 });
 
 function checkAcceptHeader(req) {
