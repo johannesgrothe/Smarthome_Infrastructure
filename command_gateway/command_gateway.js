@@ -7,12 +7,12 @@ const mqtt = require('mqtt');
 let deepEqual = require('deep-equal');
 
 // Basic
-
 const remote_types = ["homebridge"];
 
 let get_time = () => {
   return new Date().valueOf();
 };
+
 
 // Homebridge
 let homebridge_remote = () => {
@@ -136,6 +136,7 @@ let homebridge_remote = () => {
 };
 let homebridge = homebridge_remote();
 
+
 // Codes
 let code_remote = () => {
   let codes = {};
@@ -183,6 +184,56 @@ let code_remote = () => {
   }
 };
 let code_manager = code_remote();
+
+
+// Characteristics
+let generate_characteristic = (characteristic, data) => {
+
+  let gen_bool_characteristic = (data) => {
+    return {
+      type: "boolean"
+    }
+  };
+  let gen_number_characteristic = (data) => {
+    let v_min;
+    let v_max;
+    let v_step;
+
+    if (data.hasOwnProperty("min")) {
+      v_min = Number(data["min"]);
+    } else {
+      v_min = 0;
+    }
+    if (data.hasOwnProperty("max")) {
+      v_max = Number(data["max"]);
+    } else {
+      v_max = 100;
+    }
+    if (data.hasOwnProperty("step")) {
+      v_step = Number(data["step"]);
+    } else {
+      v_step = 1;
+    }
+
+    return {
+      type: "number",
+      min: v_min,
+      max: v_max,
+      step: v_step
+    }
+  };
+
+  const bool_characteristics = ["status"];
+  const number_characteristics = ["brightness", "hue", "saturation", "rotationspeed"];
+
+  if (bool_characteristics.includes(characteristic)) {
+    return gen_bool_characteristic(data);
+  } else if (number_characteristics.includes(characteristic)) {
+    return gen_number_characteristic(data);
+  }
+  return false;
+};
+
 
 // Main
 let clients = [];
@@ -240,25 +291,39 @@ let add_gadget = (gadget_name, service, characteristics, remotes) => {
   buf_gadget["service"] = service;
 
   //characteristics
+  let needed_characteristics;
+  let optional_characteristics;
+
+  switch (service) {
+    case "lightbulb":
+      needed_characteristics = ["status"];
+      optional_characteristics = ["brightness", "saturation", "hue"];
+      break;
+    case "fan":
+      needed_characteristics = ["status"];
+      optional_characteristics = ["rotationspeed"];
+      break;
+    case "doorbell":
+      break;
+  }
+
+  for (let characteristic of needed_characteristics) {
+    if (!characteristics.hasOwnProperty(characteristic)) {
+      characteristics[characteristic] = "default";
+    }
+  }
+
   buf_gadget["characteristics"] = {};
   for (let characteristic in characteristics) {
     if (characteristics.hasOwnProperty(characteristic)) {
-      let charac_data = characteristics[characteristic];
-      buf_gadget["characteristics"][characteristic] = {};
-      if (charac_data.hasOwnProperty("min")) {
-        buf_gadget["characteristics"][characteristic]["min"] = Number(charac_data["min"]);
+      if (needed_characteristics.includes(characteristic) || optional_characteristics.includes(characteristic)) {
+        let charac_data = generate_characteristic(characteristic, characteristics[characteristic]);
+        if (charac_data)
+          buf_gadget["characteristics"][characteristic] = charac_data;
+        else
+          console.log(`[x] Cannot add Characteristic '${characteristic}' to '${service}': Error`);
       } else {
-        buf_gadget["characteristics"][characteristic]["min"] = 0;
-      }
-      if (charac_data.hasOwnProperty("max")) {
-        buf_gadget["characteristics"][characteristic]["max"] = Number(charac_data["max"]);
-      } else {
-        buf_gadget["characteristics"][characteristic]["max"] = 100;
-      }
-      if (charac_data.hasOwnProperty("step")) {
-        buf_gadget["characteristics"][characteristic]["step"] = Number(charac_data["step"]);
-      } else {
-        buf_gadget["characteristics"][characteristic]["step"] = 1;
+        console.log(`[x] Cannot add Characteristic '${characteristic}' to '${service}': Not allowed`);
       }
     }
   }
@@ -282,7 +347,13 @@ let add_gadget = (gadget_name, service, characteristics, remotes) => {
       if (existing_gadget && existing_gadget["status"][characteristic] !== undefined) {
         buf_gadget["status"][characteristic] = existing_gadget["status"][characteristic];
       } else {
-        buf_gadget["status"][characteristic] = buf_gadget["characteristics"][characteristic]["min"];
+        switch (buf_gadget["characteristics"][characteristic]["type"]) {
+          case "number":
+            buf_gadget["status"][characteristic] = buf_gadget["characteristics"][characteristic]["min"];
+            break;
+          case "boolean":
+            buf_gadget["status"][characteristic] = false;
+        }
       }
     }
   }
