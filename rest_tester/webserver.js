@@ -10,7 +10,7 @@ let response = (req, res, type) => {
     type: type,
     path: req.path,
     accept: req.headers.accept,
-    body: req.body
+    body: "testbody : " + req.body
   };
 
   res.status(200).send(resp_obj);

@@ -58,7 +58,12 @@
   };
 
   let load_external_content = () => {
-    const url = "localhost:5666";
+
+    let req_url = "http://" + window.location.hostname + ":4999/gadgets/all"
+    console.log(req_url)
+
+    // const url = req_url
+    const url = "http://localhost:4999";
     const req_data = {
       headers: {
         "accept": "application/json"

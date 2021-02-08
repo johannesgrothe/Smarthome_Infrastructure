@@ -154,35 +154,33 @@ let code_remote = () => {
     handle_code: (type, code, timestamp) => {
       let ident = `${type}_${code}`;
 
+      console.log(get_time());
+
       if (timestamp > get_time()) {
-        console.log("  [x] Cannot add code: timestamp is in the future");
+        console.log(`  [x] Cannot add code: timestamp is in the future (${get_time() - timestamp}ms)`);
         return false;
       }
 
-      // if (timestamp + 2000 < get_time()) {
-      //   console.log("  [x] Cannot add code: timestamp is too far in the past");
-      //   return false;
-      // }
+      if (timestamp + 2000 < get_time()) {
+        console.log(`  [x] Cannot add code: timestamp is too far in the past (${get_time() - timestamp}ms)`);
+        return false;
+      }
 
       if (codes[ident] !== undefined) {
         if (codes[ident] > timestamp + 150) {
           console.log("  [i] Code not forwarded: doubled code");
           return true;
         }
-        console.log("  [i] Code forwarded");
-        forward_code(type, code, timestamp);
-        codes[ident] = timestamp;
-        console.log(codes);
-      } else {
-        console.log("  [i] Code forwarded");
-        forward_code(type, code, timestamp);
-        codes[ident] = timestamp;
-        console.log(codes);
       }
+      console.log(`  [i] Code forwarded: ${get_time() - timestamp}ms old, Code: ${code}`);
+      forward_code(type, code, timestamp);
+      codes[ident] = timestamp;
+      console.log(codes);
       return true;
     }
   }
 };
+
 let code_manager = code_remote();
 
 
@@ -409,7 +407,11 @@ let respond_mqtt = (id, status) => {
   if (id === undefined) {
     id = 0;
   }
-  mqtt_client.publish("smarthome/from/response", `"request_id": ${id}, "status": "${status}"`);
+  let status_str = "false";
+  if (status) {
+    status_str = "true";
+  }
+  mqtt_client.publish("smarthome/from/response", `{"request_id": ${id}, "ack": ${status_str}}`);
 };
 
 let check_body = (message, needed_keys) => {
@@ -456,10 +458,11 @@ mqtt_client.on('message', (topic, message) => {
               req_id = 0;
             }
             if (add_client(body["id"], network)) {
-              respond_mqtt(req_id, "ACK");
+              console.log(get_time());D
+              mqtt_client.publish("smarthome/from/response", `{"request_id": ${req_id}, "ack": true, "time": "${get_time()}"}`);
               console.log("[i] ACK");
             } else {
-              respond_mqtt(req_id, "ERR");
+              respond_mqtt(req_id, false);
               console.log("[i] ERR");
             }
           }
@@ -468,18 +471,18 @@ mqtt_client.on('message', (topic, message) => {
           body = check_body(message.toString(), ["name", "service", "characteristics"])
           if (body) {
             add_gadget(body["name"], body["service"], body["characteristics"], body["remotes"]);
-            respond_mqtt(body["request_id"], "ACK");
+            respond_mqtt(body["request_id"], true);
           } else {
-            respond_mqtt(body["request_id"], "ERR");
+            respond_mqtt(body["request_id"], false);
           }
           break;
         case 'smarthome/to/gadget/update':
           body = check_body(message.toString(), ["name", "characteristic", "value"])
           if (body) {
             update_gadget(body["name"], body["characteristic"], body["value"]);
-            respond_mqtt(body["request_id"], "ACK");
+            respond_mqtt(body["request_id"], true);
           } else {
-            respond_mqtt(body["request_id"], "ERR");
+            respond_mqtt(body["request_id"], false);
           }
           break;
         case 'smarthome/to/code':
@@ -492,14 +495,14 @@ mqtt_client.on('message', (topic, message) => {
               req_id = 0;
             }
             if (code_manager.handle_code(String(body["type"]), Number(body["code"]), Number(body["timestamp"]))) {
-              respond_mqtt(req_id, "ACK");
+              respond_mqtt(req_id, true);
             } else {
-              respond_mqtt(req_id, "ERR");
+              respond_mqtt(req_id, false);
             }
           }
           break;
         case 'smarthome/to/time':
-          mqtt_client.publish("smarthome/from/time", String(get_time()));
+          // mqtt_client.publish("smarthome/from/sys/time", `{"time": ${String(get_time())}}`);
           break;
         case 'homebridge/from/response':
           body = check_body(message.toString(), ["request_id"])

@@ -73,7 +73,7 @@ MQTT Payload Structure:
 
 ### Code
 #### Sending Code
-MQTT Topic: `smarthome/to/gadget/update`
+MQTT Topic: `smarthome/to/code`
 
 MQTT Payload Structure:
 ##### Required Information:
