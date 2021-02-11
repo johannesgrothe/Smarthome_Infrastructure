@@ -1,9 +1,0 @@
-{
-  "name": "Smarthome",
-  "version": "1.0.0",
-  "dependencies": {},
-  "devDependencies": {
-    "express": "^4.17.1",
-    "express-static": "^1.2.6"
-  }
-}
