@@ -1,11 +1,16 @@
 FROM node:lts
 
-WORKDIR /usr/src/app
+ENV PROJECT_DIR /usr/local/src/smarthome_bridge
+ENV REPO_NAME Smarthome_Webinterface
 
-RUN npm install express
+WORKDIR ${PROJECT_DIR}
 
-COPY . .
+RUN git clone https://github.com/johannesgrothe/${REPO_NAME}.git
+WORKDIR ${PROJECT_DIR}/${REPO_NAME}
+RUN git checkout ${WEBINTERFACE_BRANCH}
+RUN yarn install
+#RUN yarn create react-app smarthome_webinterface
 
-EXPOSE 3000
+EXPOSE ${WEBINTERFACT_PORT}
 
-CMD [ "node", "webserver.js" ]
+CMD [ "yarn", "start" ]
