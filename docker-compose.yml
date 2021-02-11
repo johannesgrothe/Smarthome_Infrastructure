@@ -4,10 +4,12 @@ services:
   webinterface:
     build:
       context: ./webinterface
+    env_file:
+      - .env
     container_name: smarthome_webinterface
     restart: always
     ports:
-      - 3000:3000
+      - $WEBINTERFACE_PORT:$WEBINTERFACE_PORT
 
   homebridge:
     build:
@@ -22,24 +24,20 @@ services:
   mosquitto:
     build:
       context: ./mosquitto
+    env_file:
+      - .env
     container_name: mosquitto
     restart: always
     ports:
       - 9001:9001
-      - 1883:1883
+      - $MQTT_PORT:$MQTT_PORT
 
-  command-gatway:
+  smarthome_bridge:
     build:
-      context: ./command_gateway
-    container_name: command-gateway
+      context: ./bridge
+    env_file:
+      - .env
+    container_name: smarthome_bridge
     restart: always
     ports:
-      - 3006:3006
-
-  rest-tester:
-    build:
-      context: ./rest_tester
-    container_name: rest-tester
-    restart: always
-    ports:
-      - 3005:3005
+      - $REST_API_PORT:$REST_API_PORT
