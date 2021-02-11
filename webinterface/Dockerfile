@@ -11,6 +11,6 @@ RUN git checkout ${WEBINTERFACE_BRANCH}
 RUN yarn install
 #RUN yarn create react-app smarthome_webinterface
 
-EXPOSE 3000
+EXPOSE ${WEBINTERFACT_PORT}
 
 CMD [ "yarn", "start" ]
