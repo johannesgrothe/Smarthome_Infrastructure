@@ -7,7 +7,7 @@ WORKDIR ${PROJECT_DIR}
 
 RUN git clone https://github.com/johannesgrothe/${REPO_NAME}.git
 WORKDIR ${PROJECT_DIR}/${REPO_NAME}
-RUN git checkout fb_1_basic_webinterface
+RUN git checkout ${WEBINTERFACE_BRANCH}
 RUN yarn install
 #RUN yarn create react-app smarthome_webinterface
 
