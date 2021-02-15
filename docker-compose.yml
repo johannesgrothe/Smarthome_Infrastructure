@@ -32,12 +32,12 @@ services:
       - 9001:9001
       - $MQTT_PORT:$MQTT_PORT
 
-#  smarthome_bridge:
-#    build:
-#      context: ./bridge
-#    env_file:
-#      - .env
-#    container_name: smarthome_bridge
-#    restart: always
-#    ports:
-#      - $REST_API_PORT:$REST_API_PORT
+  smarthome_bridge:
+    build:
+      context: ./bridge
+    env_file:
+      - .env
+    container_name: smarthome_bridge
+    restart: always
+    ports:
+      - $REST_API_PORT:$REST_API_PORT

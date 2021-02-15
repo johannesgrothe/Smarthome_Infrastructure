@@ -1,4 +1,4 @@
-FROM node:lts
+FROM node:14
 
 ENV PROJECT_DIR /usr/local/src/smarthome_bridge
 ENV REPO_NAME Smarthome_Webinterface
