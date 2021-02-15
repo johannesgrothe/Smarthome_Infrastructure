@@ -1,6 +1,6 @@
 FROM node:14
 
-ENV PROJECT_DIR /usr/local/src/smarthome_bridge
+ENV PROJECT_DIR /usr/local/src/smarthome_webinterface
 ENV REPO_NAME Smarthome_Webinterface
 
 WORKDIR ${PROJECT_DIR}
