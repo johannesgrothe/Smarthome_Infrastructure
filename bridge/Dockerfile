@@ -3,7 +3,10 @@ FROM python:3.9
 RUN pip install pipenv
 
 ENV PROJECT_DIR /usr/local/src/smarthome_bridge
-ENV REPO_NAME Smarthome_Tools
+ENV REPO_NAME Smarthome_Bridge
+
+# Remove for prod, debug only
+ENV BRIDGE_BRANCH fb_3_basic_bridge
 
 WORKDIR ${PROJECT_DIR}
 
@@ -12,6 +15,8 @@ RUN git clone https://github.com/johannesgrothe/${REPO_NAME}.git
 WORKDIR ${PROJECT_DIR}/${REPO_NAME}
 
 RUN git checkout ${BRIDGE_BRANCH}
+
+RUN git branch
 
 RUN pipenv install --deploy
 
