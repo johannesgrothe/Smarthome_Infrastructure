@@ -20,6 +20,8 @@ services:
     restart: always
     ports:
       - $REST_API_PORT:$REST_API_PORT
+      - $SOCKET_API_PORT:$SOCKET_API_PORT
+    # TODO: mount tty-ports
 
   homebridge:
     build:
