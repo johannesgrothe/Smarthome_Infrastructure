@@ -5,8 +5,8 @@ RUN pip install pipenv
 ENV PROJECT_DIR /usr/local/src/smarthome_bridge
 ENV REPO_NAME Smarthome_Bridge
 
-# Remove for prod, debug only
-ENV BRIDGE_BRANCH fb_3_basic_bridge
+## Remove for prod, debug only
+#ENV BRIDGE_BRANCH fb_3_basic_bridge
 
 WORKDIR ${PROJECT_DIR}
 
