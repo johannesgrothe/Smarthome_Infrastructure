@@ -1,4 +1,4 @@
-FROM node:lts
+FROM node:14
 RUN apt-get update && apt-get -y upgrade
 RUN apt-get -y install build-essential libssl-dev
 RUN apt-get -y install python g++ libavahi-compat-libdnssd-dev

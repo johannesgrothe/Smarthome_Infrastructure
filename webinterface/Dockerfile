@@ -1,15 +1,22 @@
-FROM node:lts
+FROM node:14
 
-ENV PROJECT_DIR /usr/local/src/smarthome_bridge
+ENV PROJECT_DIR /usr/local/src/smarthome_webinterface
 ENV REPO_NAME Smarthome_Webinterface
+
+# Remove for prod, debug only
+ENV WEBINTERFACE_BRANCH fb_1_basic_webinterface
 
 WORKDIR ${PROJECT_DIR}
 
 RUN git clone https://github.com/johannesgrothe/${REPO_NAME}.git
+
 WORKDIR ${PROJECT_DIR}/${REPO_NAME}
+
 RUN git checkout ${WEBINTERFACE_BRANCH}
+
+RUN git branch
+
 RUN yarn install
-#RUN yarn create react-app smarthome_webinterface
 
 EXPOSE ${WEBINTERFACT_PORT}
 
