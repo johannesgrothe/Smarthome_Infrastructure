@@ -4,7 +4,7 @@ ENV PROJECT_DIR /usr/local/src/smarthome_webinterface
 ENV REPO_NAME Smarthome_Webinterface
 
 # Remove for prod, debug only
-ENV WEBINTERFACE_BRANCH master
+ENV WEBINTERFACE_BRANCH develop
 
 WORKDIR ${PROJECT_DIR}
 
