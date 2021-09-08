@@ -9,7 +9,7 @@ services:
     container_name: smarthome_webinterface
     restart: always
     ports:
-      - $WEBINTERFACE_PORT:$WEBINTERFACE_PORT
+      - $WEBINTERFACE_PORT
 
   bridge:
     build:
@@ -19,8 +19,8 @@ services:
     container_name: smarthome_bridge
     restart: always
     ports:
-      - $REST_API_PORT:$REST_API_PORT
-      - $SOCKET_API_PORT:$SOCKET_API_PORT
+      - $REST_API_PORT
+      - $SOCKET_API_PORT
     # TODO: mount tty-ports
 
   homebridge:
@@ -28,7 +28,7 @@ services:
       context: ./homebridge
     container_name: homebridge
     restart: always
-    network_mode: host
+#    network_mode: host
     ports:
       - 51826:51826
       - 8765:8765

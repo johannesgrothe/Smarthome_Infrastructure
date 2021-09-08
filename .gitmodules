@@ -1,0 +1,6 @@
+[submodule "bridge/Smarthome_Bridge"]
+	path = bridge/Smarthome_Bridge
+	url = https://github.com/johannesgrothe/Smarthome_Bridge.git
+[submodule "webinterface/Smarthome_Webinterface"]
+	path = webinterface/Smarthome_Webinterface
+	url = https://github.com/johannesgrothe/Smarthome_Webinterface.git
