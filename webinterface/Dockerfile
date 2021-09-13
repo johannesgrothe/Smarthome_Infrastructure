@@ -1,20 +1,12 @@
 FROM node:14
 
-ENV PROJECT_DIR /usr/local/src/smarthome_webinterface
-ENV REPO_NAME Smarthome_Webinterface
-
-# Remove for prod, debug only
-ENV WEBINTERFACE_BRANCH develop
+ENV PROJECT_DIR /usr/local/src/Smarthome_Webinterface
 
 WORKDIR ${PROJECT_DIR}
 
-RUN git clone https://github.com/johannesgrothe/${REPO_NAME}.git
+COPY Smarthome_Webinterface .
 
-WORKDIR ${PROJECT_DIR}/${REPO_NAME}
-
-RUN git checkout ${WEBINTERFACE_BRANCH}
-
-RUN git branch
+#WORKDIR ${PROJECT_DIR}/${REPO_NAME}
 
 RUN yarn install
 
