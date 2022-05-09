@@ -21,17 +21,7 @@ services:
     ports:
       - $REST_API_PORT
       - $SOCKET_API_PORT
-    # TODO: mount tty-ports
-
-  homebridge:
-    build:
-      context: ./homebridge
-    container_name: homebridge
-    restart: always
-#    network_mode: host
-    ports:
-      - 51826:51826
-      - 8765:8765
+    # TODO: mount tty-ports (#11)
 
   mosquitto:
     build:
