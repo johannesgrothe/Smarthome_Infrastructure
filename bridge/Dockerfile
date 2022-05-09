@@ -4,6 +4,7 @@ ENV PROJECT_DIR /usr/local/src/Smarthome_Bridge
 
 WORKDIR ${PROJECT_DIR}
 
+COPY ../.env .
 COPY Smarthome_Bridge .
 
 # Pipenv
