@@ -4,7 +4,6 @@ ENV PROJECT_DIR /usr/local/src/Smarthome_Bridge
 
 WORKDIR ${PROJECT_DIR}
 
-COPY ../.env .
 COPY Smarthome_Bridge .
 
 # Pipenv
@@ -24,4 +23,4 @@ RUN pio --version
 EXPOSE ${SOCKET_API_PORT}
 EXPOSE ${REST_API_PORT}
 
-CMD ["pipenv", "run", "python", "bridge_main.py", "--mqtt_ip", "${MQTT_IP}", "--mqtt_port", "${MQTT_PORT}", "--api_port", "${REST_API_PORT}", "--socket_port", "${SOCKET_API_PORT}", "--bridge_name", "${BRIDGE_NAME}"]
+CMD ["pipenv", "run", "python", "bridge_main.py"]
