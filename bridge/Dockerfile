@@ -23,4 +23,4 @@ RUN pio --version
 EXPOSE ${SOCKET_API_PORT}
 EXPOSE ${REST_API_PORT}
 
-CMD ["pipenv", "run", "python", "smarthome_bridge/bridge_main.py", "--mqtt_ip", "${MQTT_IP}", "--mqtt_port", "${MQTT_PORT}", "--dummy_data", "--api_port", "${REST_API_PORT}", "--socket_port", "${SOCKET_API_PORT}", "--bridge_name", "${BRIDGE_NAME}"]
+CMD ["pipenv", "run", "python", "bridge_main.py", "--mqtt_ip", "${MQTT_IP}", "--mqtt_port", "${MQTT_PORT}", "--api_port", "${REST_API_PORT}", "--socket_port", "${SOCKET_API_PORT}", "--bridge_name", "${BRIDGE_NAME}"]
