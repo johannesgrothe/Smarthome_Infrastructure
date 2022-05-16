@@ -8,6 +8,7 @@ COPY Smarthome_Webinterface .
 
 RUN yarn install
 
-EXPOSE ${WEBINTERFACT_PORT}
+#EXPOSE ${WEBINTERFACT_PORT}
+EXPOSE 19006
 
 CMD [ "yarn", "start" ]
