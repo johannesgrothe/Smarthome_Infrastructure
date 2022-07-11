@@ -4,12 +4,14 @@ services:
   webinterface:
     build:
       context: ./webinterface
+      args:
+        - REST_API_PORT=${REST_API_PORT}
     env_file:
       - .env
     container_name: smarthome_webinterface
     restart: always
     ports:
-       - $WEBINTERFACE_PORT:19006
+       - "${WEBINTERFACE_PORT}:${WEBINTERFACE_PORT}"
 
   bridge:
     build:
